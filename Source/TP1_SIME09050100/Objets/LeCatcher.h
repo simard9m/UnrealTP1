@@ -26,9 +26,17 @@ public:
 	UPROPERTY(VisibleAnywhere,Category=Movement)
 	TObjectPtr<UFloatingPawnMovement> FloatingMovement;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float MinY = -800.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	float MaxY = 800.0f;
 	
-	
-	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Idle")
+	float IdleSpeed = 400.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Idle")
+	float IdleAcceptanceRadius = 40.0f;
 	
 
 protected:
@@ -55,5 +63,11 @@ public:
 		bool bFromSweep,
 		const FHitResult& SweepResult
 	);
+	
+	FVector IdleTarget;
+
+	void ChooseNewIdleTarget();
+
+	FVector SeekWithSpeed(FVector Position, float Speed);
 
 };

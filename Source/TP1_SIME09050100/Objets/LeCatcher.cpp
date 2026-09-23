@@ -39,13 +39,15 @@ void ALeCatcher::BeginPlay()
 	Super::BeginPlay();
 	
 	ObjectToCatch = UGameplayStatics::GetActorOfClass(GetWorld(), ALeBonus::StaticClass());
+	ChooseNewIdleTarget();
 }
 
 // Called every frame
 void ALeCatcher::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	
+
+	//trouve un nouveau bonus si nécessaire
 	if (!IsValid(ObjectToCatch))
 	{
 		ObjectToCatch = UGameplayStatics::GetActorOfClass(
@@ -54,13 +56,20 @@ void ALeCatcher::Tick(float DeltaTime)
 		);
 	}
 
+	//si on a un bonus à suivre
 	if (IsValid(ObjectToCatch))
 	{
 		FVector TargetPosition = ObjectToCatch->GetActorLocation();
+		
+		//Empeche mon seek de lock en dehors de la zone de jeu
+		TargetPosition.Y = FMath::Clamp(TargetPosition.Y,MinY,MaxY);
 
-		float DistanceY = FMath::Abs(TargetPosition.Y - GetActorLocation().Y);
 
-		//Direct en dessous
+		float DistanceY = FMath::Abs(
+			TargetPosition.Y - GetActorLocation().Y
+		);
+
+		//si le catcher est directement sous le bonus
 		if (DistanceY < 15.0f)
 		{
 			FVector CurrentVelocity = FloatingMovement->Velocity;
@@ -68,11 +77,31 @@ void ALeCatcher::Tick(float DeltaTime)
 			CurrentVelocity.Y = 0.0f;
 
 			FloatingMovement->Velocity = CurrentVelocity;
+		}
+		else
+		{
+			FVector Steering = Seek(TargetPosition);
 
-			return;
+			Steering.X = 0.0f;
+			Steering.Z = 0.0f;
+
+			AddMovementInput(
+				Steering.GetSafeNormal(),
+				1.0f
+			);
+		}
+	}
+	else
+	{
+		float DistanceToIdleTarget = FMath::Abs(IdleTarget.Y - GetActorLocation().Y);
+
+		//arrivé près de notre destination idle
+		if (DistanceToIdleTarget < IdleAcceptanceRadius)
+		{
+			ChooseNewIdleTarget();
 		}
 
-		FVector Steering = Seek(TargetPosition);
+		FVector Steering = SeekWithSpeed(IdleTarget, IdleSpeed);
 
 		Steering.X = 0.0f;
 		Steering.Z = 0.0f;
@@ -131,6 +160,30 @@ void ALeCatcher::OnCatchOverlap(
 
 		Bonus->Destroy();
 	}
+}
+
+void ALeCatcher::ChooseNewIdleTarget()
+{
+	IdleTarget = GetActorLocation();
+
+	IdleTarget.Y = FMath::FRandRange(MinY, MaxY);
+}
+
+FVector ALeCatcher::SeekWithSpeed(FVector Position, float Speed)
+{
+	FVector Desired = Position - GetActorLocation();
+
+	Desired.X = 0.0f;
+	Desired.Z = 0.0f;
+
+	Desired.Normalize();
+
+	Desired *= Speed;
+
+	FVector Steering =
+		Desired - FloatingMovement->Velocity;
+
+	return Steering;
 }
 
 
